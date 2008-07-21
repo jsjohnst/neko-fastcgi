@@ -13,4 +13,8 @@ clean:
 	rm -rf build
 
 realclean: clean
-	rm -f nekocgi 
+	rm -f nekocgi
+
+install: build nekocgi
+	sudo cp nekocgi /usr/sbin
+	sudo cp etc/init.d/neko-fastcgi /etc/init.d/
