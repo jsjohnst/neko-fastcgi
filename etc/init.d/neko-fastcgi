@@ -1,0 +1,120 @@
+#! /bin/sh
+
+exe=/usr/sbin/nekocgi
+pidfile=/var/log/nekocgi/pid
+
+wait_for_pid () {
+	try=0
+
+	while test $try -lt 35 ; do
+
+		case "$1" in
+			'created')
+			if [ -f "$2" ] ; then
+				try=''
+				break
+			fi
+			;;
+
+			'removed')
+			if [ ! -f "$2" ] ; then
+				try=''
+				break
+			fi
+			;;
+		esac
+
+		echo -n .
+		try=`expr $try + 1`
+		sleep 1
+
+	done
+
+}
+
+case "$1" in
+	start)
+		echo -n "Starting NekoVM FCGI "
+
+		sudo -u nobody $exe >> /var/log/nekocgi/log
+
+		if [ "$?" != 0 ] ; then
+			echo " failed"
+			exit 1
+		fi
+
+		wait_for_pid created $pidfile
+
+		if [ -n "$try" ] ; then
+			echo " failed"
+			exit 1
+		else
+			echo " done"
+		fi
+	;;
+
+	stop)
+		echo -n "Shutting down NekoVM FCGI "
+
+		if [ ! -r $pidfile ] ; then
+			echo "warning, no pid file found - nekocgi is not running ?"
+			exit 1
+		fi
+
+		kill -TERM `cat $pidfile`
+
+		wait_for_pid removed $pidfile
+
+		if [ -n "$try" ] ; then
+			echo " failed"
+			exit 1
+		else
+			echo " done"
+		fi
+	;;
+
+	quit)
+		echo -n "Gracefully shutting down NekoVM FCGI "
+
+		if [ ! -r $pidfile ] ; then
+			echo "warning, no pid file found - nekocgi is not running ?"
+			exit 1
+		fi
+
+		kill -QUIT `cat $pidfile`
+
+		wait_for_pid removed $pidfile
+
+		if [ -n "$try" ] ; then
+			echo " failed"
+			exit 1
+		else
+			echo " done"
+		fi
+	;;
+
+	restart)
+		$0 stop
+		$0 start
+	;;
+
+	reload)
+
+		echo -n "Reload service NekoVM FCGI "
+
+		if [ ! -r $pidfile ] ; then
+			echo "warning, no pid file found - nekocgi is not running ?"
+			exit 1
+		fi
+
+		kill -USR2 `cat $pidfile`
+
+		echo " done"
+	;;
+
+	*)
+		echo "Usage: $0 {start|stop|quit|restart|reload}"
+		exit 1
+	;;
+
+esac
